@@ -1,0 +1,81 @@
+# Configuration du projet Rakuten
+
+projet:
+  nom: "JUN25-CDS-RAKUTEN"
+  version: "0.1.0"
+  description: "Classification multimodale des produits Rakuten"
+
+donnees:
+  train_csv: "data/csv/X_train_update.csv"
+  test_csv: "data/csv/X_test_update.csv"
+  labels_csv: "data/csv/Y_train_CVw08PX.csv"
+  images_train_dir: "data/images/image_train"
+  images_test_dir: "data/images/image_test"
+
+# Conserver aussi les clés anglaises pour compatibilité avec les notebooks existants
+data:
+  train_csv: "data/csv/X_train_update.csv"
+  test_csv: "data/csv/X_test_update.csv"
+  labels_csv: "data/csv/Y_train_CVw08PX.csv"
+  images_train_dir: "data/images/image_train"
+  images_test_dir: "data/images/image_test"
+
+preprocessing:
+  text:
+    minuscules: true
+    supprimer_accents: true
+    supprimer_special: true
+    lowercase: true
+    remove_accents: true
+    remove_special: true
+  numerique:
+    methode: "standard"
+  missing_values:
+    strategie: "moyenne"
+
+feature_engineering:
+  text:
+    methode: "tfidf"
+    nb_features: 1000
+    plage_ngram: [1, 2]
+  images:
+    modele: "resnet50"
+    dispositif: "cpu"
+  reduction_dimensionnalite:
+    methode: "svd"
+    nb_composantes: 200
+
+modeling:
+  graine: 42
+  taille_test: 0.2
+  modeles_baseline:
+    - "regression_logistique"
+    - "foret_aleatoire"
+    - "xgboost"
+    - "lightgbm"
+  xgboost:
+    nb_estimateurs: 100
+    profondeur_max: 6
+    taux_apprentissage: 0.1
+  lightgbm:
+    nb_estimateurs: 100
+    profondeur_max: 6
+    taux_apprentissage: 0.1
+  foret_aleatoire:
+    nb_estimateurs: 100
+    profondeur_max: 10
+
+evaluation:
+  metriques:
+    - "accuracy"
+    - "precision_macro"
+    - "rappel_macro"
+    - "f1_macro"
+    - "f1_pondere"
+  nb_plis: 5
+
+output:
+  models_dir: "models/trained_models"
+  preprocessors_dir: "models/preprocessors"
+  reports_dir: "reports"
+  logs_dir: "logs"

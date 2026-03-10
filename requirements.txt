@@ -1,0 +1,46 @@
+# Traitement de Donnees et ML
+pandas>=1.3.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+scipy>=1.7.0
+
+# Deep Learning
+torch>=1.10.0
+transformers>=4.20.0
+Pillow>=8.0.0
+
+# Traitement du Texte
+spacy>=3.0.0
+nltk>=3.6.0
+
+# Visualisation
+matplotlib>=3.4.0
+seaborn>=0.11.0
+plotly>=5.0.0
+kaleido>=0.2.1
+
+# Reduction de Dimensionalite
+umap-learn>=0.5.0
+
+# Optimisation Hyperparametres
+optuna>=2.10.0
+
+# Boosting
+xgboost>=1.5.0
+lightgbm>=3.3.0
+catboost>=1.0.0
+joblib>=1.0.0
+catboost>=1.0.0
+
+# Utilities
+tqdm>=4.62.0
+pyyaml>=5.4.0
+python-dotenv>=0.19.0
+
+# Development & Testing
+pytest>=6.2.0
+pytest-cov>=2.12.0
+black>=21.7b0
+flake8>=3.9.0
+jupyter>=1.0.0
+ipython>=7.0.0
