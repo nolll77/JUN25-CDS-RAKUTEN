@@ -51,5 +51,5 @@ Accès à l'interface de démo : http://localhost:8080/demo/image
 Le système a été validé sur des cas complexes (mots courts, désignations ambiguës) avec une précision stabilisée après résolution de la dérive de classification.
 
 ---
-**Équipe** : nolll (Lead DS) & ediz (ML Ops & Architecture)  
+**Équipe** : Noel CHING (Lead Data Scientist, ML Ops & Architecture) & Ediz OZKOHEN (Machine Learning Engineer, Preprocessing & Modeling, Technical Communications)  
 **Statut** : API Déployée et Stabilisée (Avril 2026)
