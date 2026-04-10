@@ -6,35 +6,47 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 
-const SIMULATED_PREDICTIONS = [
-  { code: 2583, label: "Meubles d'intérieur", proba: 0.72 },
-  { code: 2585, label: "Décoration", proba: 0.15 },
-  { code: 1920, label: "Linge de maison", proba: 0.08 },
-  { code: 2060, label: "Décoration murale", proba: 0.03 },
-  { code: 1140, label: "Figurines", proba: 0.02 },
-];
+// Simulation data removed to force real API testing
+const SIMULATED_PREDICTIONS = [];
 
 export default function DemoTexte() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<typeof SIMULATED_PREDICTIONS | null>(null);
 
-  const handlePredict = () => {
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  const handlePredict = async () => {
     if (!text.trim()) return;
     setLoading(true);
     setResult(null);
-    setTimeout(() => {
-      const seed = text.length % 5;
-      const shifted = [...SIMULATED_PREDICTIONS];
-      if (seed > 0) {
-        const first = shifted.splice(seed, 1);
-        shifted.unshift(...first);
-        const probas = [0.68, 0.14, 0.09, 0.05, 0.04];
-        shifted.forEach((s, i) => (s.proba = probas[i]));
+
+    try {
+      const formData = new FormData();
+      formData.append("text", text);
+      
+      const response = await fetch(`${apiUrl}/predict`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`API Error: ${response.status} - ${errText}`);
       }
-      setResult(shifted);
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setResult(data.predictions);
+      } else {
+        throw new Error("Format de réponse API invalide");
+      }
+    } catch (error: any) {
+      console.error("Prediction Error:", error);
+      alert(`Erreur de connexion à l'IA : ${error.message}\nAssurez-vous que le serveur tourne sur ${apiUrl}`);
+    } finally {
       setLoading(false);
-    }, 1200);
+    }
   };
 
   return (

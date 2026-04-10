@@ -1,17 +1,13 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { GlowCard } from "@/components/GlowCard";
-import { Upload, Zap, ImageIcon, X } from "lucide-react";
+import { Upload, Zap, ImageIcon, X, ToggleLeft, ToggleRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 
-const IMAGE_PREDICTIONS = [
-  { code: 1281, label: "Jeux vidéo", proba: 0.65 },
-  { code: 2705, label: "Livres", proba: 0.12 },
-  { code: 2522, label: "Papeterie", proba: 0.10 },
-  { code: 1940, label: "Alimentation", proba: 0.08 },
-  { code: 2060, label: "Décoration murale", proba: 0.05 },
-];
+// Simulation data removed to force real API testing
+const IMAGE_PREDICTIONS = [];
 
 export default function DemoImage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -19,7 +15,35 @@ export default function DemoImage() {
   const [imageLoading, setImageLoading] = useState(false);
   const [imageResult, setImageResult] = useState<typeof IMAGE_PREDICTIONS | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [description, setDescription] = useState("");
+  const [modelMode, setModelMode] = useState<string>("stacking");
+  const [modeUsed, setModeUsed] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  // Récupérer le mode actif au chargement
+  useEffect(() => {
+    fetch(`${apiUrl}/model-status`)
+      .then(r => r.json())
+      .then(d => setModelMode(d.current_mode))
+      .catch(() => {});
+  }, []);
+
+  const toggleModel = async () => {
+    const newMode = modelMode === "stacking" ? "mlp" : "stacking";
+    try {
+      const res = await fetch(`${apiUrl}/set-model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: newMode }),
+      });
+      const data = await res.json();
+      setModelMode(data.model_mode);
+    } catch {
+      setModelMode(newMode);
+    }
+  };
 
   const processImage = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -49,28 +73,50 @@ export default function DemoImage() {
     if (file) processImage(file);
   };
 
-  const handleImagePredict = () => {
+  const handleImagePredict = async () => {
     if (!imageFile) return;
     setImageLoading(true);
     setImageResult(null);
-    setTimeout(() => {
-      const seed = imageFile.name.length % 5;
-      const shifted = [...IMAGE_PREDICTIONS];
-      if (seed > 0) {
-        const first = shifted.splice(seed, 1);
-        shifted.unshift(...first);
-        const probas = [0.61, 0.15, 0.11, 0.08, 0.05];
-        shifted.forEach((s, i) => (s.proba = probas[i]));
+
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+      formData.append("text", description); // Description que l'utilisateur a saisie
+
+      // Si la variable d'environnement manque on met un fallback
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      
+      const response = await fetch(`${apiUrl}/predict`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        console.error(await response.text());
+        throw new Error("Erreur de connexion à l'API ML");
       }
-      setImageResult(shifted);
+
+      const data = await response.json();
+      if (data.status === 'success') {
+        setImageResult(data.predictions);
+        setModeUsed(data.model_mode || modelMode);
+      } else {
+        throw new Error("Résultat API invalide");
+      }
+    } catch (error: any) {
+      console.error("Prediction Error:", error);
+      alert(`Erreur de connexion à l'IA : ${error.message}\nAssurez-vous que le serveur tourne sur ${apiUrl}`);
+      setImageResult(null);
+    } finally {
       setImageLoading(false);
-    }, 1500);
+    }
   };
 
   const clearImage = () => {
     setImageFile(null);
     setImagePreview(null);
     setImageResult(null);
+    setDescription("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -78,14 +124,40 @@ export default function DemoImage() {
     <div className="p-6 md:p-10 max-w-4xl mx-auto">
       <PageHeader
         icon={ImageIcon}
-        title="Classification Image"
-        subtitle="Uploadez une image de produit pour prédire sa catégorie."
-        step="Démo interactive"
+        title="Classification Multimodale"
+        subtitle="Uploadez une image de produit et saisissez un titre pour prédire sa catégorie."
+        step="Démo Classification Multimodale"
       />
+
+      {/* Toggle Stacking / MLP */}
+      <GlowCard delay={0.05} className="mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">Modèle actif</span>
+            <p className="text-sm font-semibold mt-1">
+              {modelMode === "stacking" ? "Stacking Complet" : "MLP (roue de secours)"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {modelMode === "stacking"
+                ? "LightGBM + CatBoost + LR + MLP → Meta Learner"
+                : "Deep Learning MLP seul (plus rapide)"}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleModel}
+            className="flex items-center gap-2"
+          >
+            {modelMode === "stacking" ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+            {modelMode === "stacking" ? "Basculer vers MLP" : "Basculer vers Stacking"}
+          </Button>
+        </div>
+      </GlowCard>
 
       <GlowCard delay={0.1} className="mb-6">
         <label className="block font-mono text-xs text-muted-foreground mb-3 uppercase tracking-wider">
-          Classification par image
+          Analyse Multimodale du Produit
         </label>
 
         <div
@@ -144,7 +216,18 @@ export default function DemoImage() {
           />
         </div>
 
-        <div className="flex items-center gap-3 mt-4">
+        <div className="mt-4">
+          <label className="block text-xs text-muted-foreground font-mono mb-2">
+            Description / Titre du produit
+          </label>
+          <Textarea 
+            placeholder="Ex: Console de jeu Playstation 5 Sony, état neuf avec manette..."
+            className="w-full mb-4 border-border bg-secondary/20 focus-visible:ring-primary min-h-[80px]"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-3">
           <Button
             onClick={handleImagePredict}
             disabled={!imageFile || imageLoading}
@@ -158,7 +241,7 @@ export default function DemoImage() {
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Prédire (image)
+                Prédire (Multimodal)
               </>
             )}
           </Button>
@@ -169,7 +252,7 @@ export default function DemoImage() {
         {imageResult && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <GlowCard className="neon-border">
-              <h3 className="font-mono text-sm font-semibold text-foreground mb-4">Prédictions image (Top 5)</h3>
+              <h3 className="font-mono text-sm font-semibold text-foreground mb-4">Prédictions Multimodales (Top 5)</h3>
               <div className="space-y-3">
                 {imageResult.map((pred, i) => (
                   <div key={pred.code} className="flex items-center gap-3">

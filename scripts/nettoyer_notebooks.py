@@ -98,9 +98,9 @@ def traiter_notebook(chemin_entree, chemin_sortie=None):
 
 if __name__ == "__main__":
     notebooks = [
-        "notebooks/01_EXPLORATION/1.0_exploration_eda.ipynb",
-        "notebooks/02_PREPROCESSING/2.0_preprocessing_pipeline.ipynb",
-        "notebooks/03_MODELING/3.3_final_models.ipynb"
+        "notebooks/nb1_eda.ipynb",
+        "notebooks/nb2_preprocessing.ipynb",
+        "notebooks/nb3_modeling.ipynb"
     ]
     
     base_path = "/Users/nolll/Documents/rakuten_project_clean"

@@ -94,11 +94,13 @@ data/images/image_train/*
 data/images/image_test/*
 !data/images/image_test/.gitkeep
 
-# Models (keep structure)
-models/trained_models/*
-!models/trained_models/.gitkeep
-models/preprocessors/*
-!models/preprocessors/.gitkeep
+# Models (suivis pour l'inférence)
+!models/trained_models/*.joblib
+!models/trained_models/*.cbm
+!models/trained_models/*.pt
+!models/trained_models/*.npy
+!models/preprocessors/*.joblib
+!models/preprocessors/*.npy
 
 # Logs
 logs/

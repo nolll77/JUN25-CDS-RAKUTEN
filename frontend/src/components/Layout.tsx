@@ -13,7 +13,7 @@ const pageTitles: Record<string, { section: string; title: string }> = {
   "/resultats": { section: "Projet", title: "Résultats" },
   "/conclusion": { section: "Projet", title: "Conclusion" },
   "/demo/texte": { section: "Démo", title: "Texte" },
-  "/demo/image": { section: "Démo", title: "Image" },
+  "/demo/multimodal": { section: "Démo", title: "Multimodal" },
   "/dashboard/kpis": { section: "Dashboard", title: "KPIs Globaux" },
   "/dashboard/graphiques": { section: "Dashboard", title: "Graphiques" },
   "/dashboard/timeline": { section: "Dashboard", title: "Timeline" },

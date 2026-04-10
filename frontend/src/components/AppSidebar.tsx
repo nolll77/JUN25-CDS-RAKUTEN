@@ -27,7 +27,7 @@ const mainItems = [
 
 const demoItems = [
   { title: "Texte", url: "/demo/texte", icon: Type },
-  { title: "Image", url: "/demo/image", icon: ImageIcon },
+  { title: "Multimodal", url: "/demo/multimodal", icon: ImageIcon },
 ];
 
 const dashboardItems = [

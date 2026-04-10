@@ -39,7 +39,7 @@ const App = () => (
             <Route path="/conclusion" element={<Conclusion />} />
             <Route path="/demo" element={<Navigate to="/demo/texte" replace />} />
             <Route path="/demo/texte" element={<DemoTexte />} />
-            <Route path="/demo/image" element={<DemoImage />} />
+            <Route path="/demo/multimodal" element={<DemoImage />} />
             <Route path="/dashboard/kpis" element={<DashboardKPIs />} />
             <Route path="/dashboard/graphiques" element={<DashboardGraphiques />} />
             <Route path="/dashboard/timeline" element={<DashboardTimeline />} />
