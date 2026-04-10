@@ -1,3 +1,12 @@
+---
+title: Rakuten Multimodal API
+emoji: 📦
+colorFrom: red
+colorTo: gray
+sdk: docker
+pinned: false
+---
+
 # Rakuten Multimodal Classification Engine
 
 Ce projet implémente un moteur de classification de produits exploitant le Deep Learning Multimodal (Texte + Image) pour catégoriser les produits Rakuten.
