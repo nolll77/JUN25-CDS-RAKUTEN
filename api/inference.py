@@ -327,7 +327,7 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     
     # 4. MLP
     with torch.no_grad():
-        tensor_input = torch.from_numpy(X_scaled).float().to(DEVICE)
+        tensor_input = torch.from_numpy(X_scaled.copy()).float().to(DEVICE)
         logits = mlp_model(tensor_input)
         mlp_probas = torch.softmax(logits, dim=1).cpu().numpy()
     print(f"[DEBUG]   -> MLP: {target_classes[np.argmax(mlp_probas[0])]} ({mlp_probas[0].max()*100:.1f}%)")
