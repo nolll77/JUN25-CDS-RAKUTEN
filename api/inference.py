@@ -21,6 +21,12 @@ from PIL import Image
 # Configuration libomp avant les imports d'apprentissage
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+# Suppression des avertissements Hugging Face / Transformers
+os.environ["HF_HUB_OFFLINE"] = "1" 
+import logging
+from transformers import logging as transformers_logging
+transformers_logging.set_verbosity_error()
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
 
 # Architecture MLP définie après import torch (voir Phase 2)
