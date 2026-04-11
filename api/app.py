@@ -37,13 +37,16 @@ logger = logging.getLogger("uvicorn")
 @app.on_event("startup")
 def startup_event():
     url_base = get_frontend_url()
-    logger.info("════════════════════════════════════════════════")
-    logger.info("   🚀 RAKUTEN PROJECT - RACCOURCIS LOCAUX")
-    logger.info(f"   🏠 Accueil      : {url_base}/")
-    logger.info(f"   🖼️  Multimodal   : {url_base}/demo/multimodal")
-    logger.info(f"   📝 Texte seul   : {url_base}/demo/texte")
-    logger.info(f"   📚 Swagger Docs : http://localhost:8000/docs")
-    logger.info("════════════════════════════════════════════════")
+    logger.info("------------------------------------------------")
+    logger.info("   RAKUTEN PROJECT - RACCOURCIS LOCAUX")
+    logger.info(f"   Homepage      : {url_base}/")
+    logger.info(f"   Multimodal    : {url_base}/demo/multimodal")
+    logger.info(f"   Swagger Docs  : http://localhost:8000/docs")
+    logger.info("------------------------------------------------")
+    logger.info("   LIENS DE PRODUCTION")
+    logger.info("   Vercel        : https://jun25-cds-rakuten.vercel.app/")
+    logger.info("   HF Spaces     : https://huggingface.co/spaces/nolll77/JUN25-CDS-RAKUTEN")
+    logger.info("------------------------------------------------")
 
 app.add_middleware(
     CORSMiddleware,
