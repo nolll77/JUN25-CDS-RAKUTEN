@@ -1,6 +1,5 @@
 ---
 title: Rakuten Multimodal API
-emoji: none
 colorFrom: red
 colorTo: gray
 sdk: docker
@@ -9,11 +8,9 @@ pinned: false
 
 # Rakuten Multimodal Classification Engine
 
-Ce moteur de classification de produits exploite le Deep Learning Multimodal (Texte + Image) pour résoudre le challenge **<a href="https://challengedata.ens.fr/challenges/35">Rakuten / Challenge Data ENS</a>**. 
+Ce projet répond au challenge **[Rakuten / Challenge Data ENS](https://challengedata.ens.fr/challenges/35)**. Il vise la classification multimodale à grande échelle pour prédire automatiquement la catégorie des produits du catalogue Rakuten France.
 
-> This challenge focuses on the topic of large-scale product type code multimodal (text and image) classification where the goal is to predict each product's type code as defined by the French e-commerce platform Rakuten.
-
-**Objectif** : Prédire le type de produit à grande échelle en fusionnant les signaux textuels (désignations, descriptions) et visuels (images).
+**Objectif** : Prédire le type de produit en fusionnant les signaux textuels (désignations, descriptions) et visuels (images).
 
 ## Points Forts
 - **Architecture hybride** : Fusion de modèles Transformers (CamemBERT) et de Computer Vision (EfficientNet).
@@ -33,7 +30,7 @@ L'inférence génère un vecteur de caractéristiques de 1131 dimensions :
 ### 1. Installation
 ```bash
 python -m venv venv
-source venv/bin/activate
+source venv/activate
 pip install -r requirements.txt
 python -m spacy download fr_core_news_md
 git lfs pull
