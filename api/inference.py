@@ -290,10 +290,12 @@ def build_feature_vector(text: str, image_path: str) -> tuple[np.ndarray, np.nda
     
     # 4. Global scaling (StandardScaler fitted on X_final)
     X_scaled_raw = scaler_features.transform(X_raw).astype(np.float32)
-    # On augmente le clipping à 10.0 pour laisser respirer le signal CamemBERT
-    X_scaled = np.clip(X_scaled_raw, -10.0, 10.0)
+    X_scaled = np.clip(X_scaled_raw, -3.0, 3.0)
     
-    print(f"\n[DEBUG] --- STATS FEATURES (Final) ---")
+    print(f"\n[DEBUG] --- STATS FEATURES ---")
+    print(f"[DEBUG] CamemBERT std: {camembert_vec.std():.4f}")
+    print(f"[DEBUG] Text SVD std:  {text_svd_vec.std():.4f}")
+    print(f"[DEBUG] Image block std: {img_vec.std():.4f}")
     print(f"[DEBUG] X_scaled mean: {X_scaled.mean():.4f}, std: {X_scaled.std():.4f}")
     
     return X_raw, X_scaled
@@ -348,25 +350,30 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     # 5. Fusion pour Meta-Learner (RAW requis)
     stacking_input = np.hstack([lgbm_probas, cb_probas, lr_probas_raw, mlp_probas_raw])
     
-    # 6. Meta-Learner + Calibration Finale
+    # 6. Meta-Learner + VETO FLEXIBLE
     print("\n[DEBUG] --- ETAPE 6: META-LEARNER FUSION ---")
     meta_probas_raw = meta_learner.predict_proba(stacking_input)[0]
     
-    # --- CONSENSUS VETO (Sovereign consensus) ---
+    # --- ANALYSE DU CONSENSUS ---
     meta_winner_idx = np.argmax(meta_probas_raw)
     lgbm_winner_idx = np.argmax(lgbm_probas[0])
     cb_winner_idx = np.argmax(cb_probas[0])
     lr_winner_idx = np.argmax(lr_probas_raw)
+    mlp_winner_idx = np.argmax(mlp_probas_raw)
     
-    # Affichage pour debug terminal
-    print(f"[DEBUG] Votants : LGBM={target_classes[lgbm_winner_idx]}, CB={target_classes[cb_winner_idx]}, LR={target_classes[lr_winner_idx]}, MLP={target_classes[np.argmax(mlp_probas_raw)]}")
+    print(f"[DEBUG] Votants : LGBM={target_classes[lgbm_winner_idx]}, CB={target_classes[cb_winner_idx]}, LR={target_classes[lr_winner_idx]}, MLP={target_classes[mlp_winner_idx]}")
 
-    # Si les 3 modèles classiques sont d'accord contre le Meta-Learner/MLP
-    if lgbm_winner_idx == cb_winner_idx == lr_winner_idx and lgbm_winner_idx != meta_winner_idx:
-        print(f"[DEBUG]   [VETO] Le consensus (3/4) impose sa décision : {target_classes[lgbm_winner_idx]}")
-        # On transfère la confiance vers le gagnant du consensus
-        meta_probas_raw[lgbm_winner_idx] += meta_probas_raw[meta_winner_idx] * 0.8
-        meta_probas_raw[meta_winner_idx] *= 0.2
+    # Détection d'un consensus (au moins 2 modèles classiques d'accord)
+    consensus_idx = None
+    if lgbm_winner_idx == cb_winner_idx: consensus_idx = lgbm_winner_idx
+    elif lgbm_winner_idx == lr_winner_idx: consensus_idx = lgbm_winner_idx
+    elif cb_winner_idx == lr_winner_idx: consensus_idx = cb_winner_idx
+
+    # Si consensus trouvé et différent du gagnant MLP/Meta
+    if consensus_idx is not None and consensus_idx != meta_winner_idx:
+        print(f"[DEBUG]   [VETO] Consensus détecté ({target_classes[consensus_idx]}). Correction du Meta-Learner.")
+        # On booste massivement le consensus
+        meta_probas_raw[consensus_idx] += 0.5 
         meta_probas_raw /= meta_probas_raw.sum()
 
     # --- LISSAGE ET CALIBRATION ---
@@ -374,7 +381,7 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     exp_probas = np.exp(final_logits / 1.5)
     final_probas = exp_probas / exp_probas.sum()
     
-    # --- ANTI-BIAIS MAGASINES/MAGAZINES ---
+    # Anti-biais (Amortissement des classes dominantes)
     top_idx = np.argmax(final_probas)
     top_code = int(target_classes[top_idx])
     if top_code in (1140, 2582, 1280) and final_probas[top_idx] > 0.60:
