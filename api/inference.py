@@ -50,13 +50,14 @@ CURRENT_MODE = "stacking"
 
 RAKUTEN_MAPPING = {
     10: "Livres occasion", 40: "Jeux vidéo", 50: "Accessoires jeux vidéo",
-    60: "Consoles de jeu", 1140: "Figurines", 1160: "Cartes de collection",
-    1180: "Jeux de plateau", 1280: "Jouets enfants / Peluches", 1281: "Jeux enfants",
-    1300: "Jeux de plein air", 1320: "Maternité / Puériculture", 1560: "Mobilier intérieur",
-    1920: "Linge de maison", 1940: "Alimentation", 2060: "Décoration intérieur",
-    2220: "Animalerie", 2280: "Magazines / Revues", 2403: "Livres jeunesse",
-    2462: "Jeux vidéo dématérialisés", 2522: "Papeterie / Fournitures", 2582: "Mobilier de jardin",
-    2583: "Piscine / Spa", 2585: "Bricolage / Outillage", 2705: "Livres neufs", 2905: "Jeu PC",
+    60: "Consoles", 1140: "Magazines", 1160: "Livres BD & Mangas",
+    1180: "Livres jeunesse", 1280: "Jeux de société traditionnels", 1281: "Jouets & Figurines",
+    1300: "Jeux plein air", 1301: "Piscines & Accessoires", 1302: "Mobilier jardin",
+    1320: "Literie", 1560: "Décoration intérieure", 1920: "Rangement & Organisation",
+    1940: "Linge de maison", 2060: "Meubles salle de bain", 2220: "Meubles TV & Hi-Fi",
+    2280: "Meubles chambre", 2403: "Luminaires", 2462: "Tapis & Moquettes",
+    2522: "Meubles cuisine", 2582: "Meubles entrée", 2583: "Meubles salon",
+    2585: "Meubles bureau", 2705: "Animalerie", 2905: "Autres",
 }
 
 # ══════════════════════════════════════════
@@ -321,32 +322,47 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     cb_probas = catboost_model.predict_proba(X_scaled)
     print(f"[DEBUG]   -> CatBoost: {target_classes[np.argmax(cb_probas[0])]} ({cb_probas[0].max()*100:.1f}%)")
     
-    # 3. Logistic Regression (Lissage par puissance 0.5 pour réduire la saturation)
+    # 3. Logistic Regression
     lr_probas_raw = lr_model.predict_proba(X_scaled)
-    lr_probas = np.power(lr_probas_raw, 0.5)
-    lr_probas /= lr_probas.sum(axis=1, keepdims=True)
-    print(f"[DEBUG]   -> LogReg: {target_classes[np.argmax(lr_probas[0])]} ({lr_probas[0].max()*100:.1f}%) [smoothed]")
+    # Version lissée (Power 0.5) uniquement pour le log visuel
+    lr_p_smooth = np.power(lr_probas_raw, 0.5)
+    lr_p_smooth /= lr_p_smooth.sum(axis=1, keepdims=True)
+    print(f"[DEBUG]   -> LogReg: {target_classes[np.argmax(lr_probas_raw[0])]} ({lr_probas_raw[0].max()*100:.1f}%) [RAW for Stack]")
     
-    # 4. MLP (Lissage par Température T=2.0 sur les logits)
+    # 4. MLP (Deep Learning)
     with torch.no_grad():
         tensor_input = torch.from_numpy(X_scaled.copy()).float().to(DEVICE)
         logits = mlp_model(tensor_input)
-        # On divise les logits par 2.0 pour "calmer" la confiance du modèle
-        mlp_probas = torch.softmax(logits / 2.0, dim=1).cpu().numpy()
-    print(f"[DEBUG]   -> MLP: {target_classes[np.argmax(mlp_probas[0])]} ({mlp_probas[0].max()*100:.1f}%) [smoothed]")
+        # Version RAW pour le méta-modèle (Softmax standard)
+        mlp_probas_raw = torch.softmax(logits, dim=1).cpu().numpy()
+        # Version lissée (T=2.0) pour le log visuel
+        mlp_p_smooth = torch.softmax(logits / 2.0, dim=1).cpu().numpy()
+    print(f"[DEBUG]   -> MLP: {target_classes[np.argmax(mlp_probas_raw[0])]} ({mlp_probas_raw[0].max()*100:.1f}%) [RAW for Stack]")
     
-    # 5. Fusion pour Meta-Learner (108 features)
+    # 5. Fusion pour Meta-Learner (Utilisation des versions RAW obligatoires)
     stacking_input = np.hstack([
         lgbm_probas,
         cb_probas,
-        lr_probas,
-        mlp_probas
+        lr_probas_raw,
+        mlp_probas_raw
     ])
     
-    # 6. Meta-Learner
+    # 6. Meta-Learner + Calibration Finale
     print("\n[DEBUG] --- ETAPE 6: META-LEARNER FUSION ---")
     final_probas = meta_learner.predict_proba(stacking_input)
-    print(f"[DEBUG]   -> META-LEARNER RESULT: {target_classes[np.argmax(final_probas[0])]} ({final_probas[0].max()*100:.1f}%)")
+    
+    # --- CALIBRATION FINALE ANTI-BIAIS ---
+    # Si 'Magazines' (1140) ou 'Meubles entrée' (2582) dominent trop agressivement (>85%)
+    # on applique un léger dampening pour laisser une chance au consensus.
+    top_idx = np.argmax(final_probas[0])
+    top_code = int(target_classes[top_idx])
+    if top_code in (1140, 2582) and final_probas[0][top_idx] > 0.85:
+        print(f"[DEBUG]   [Calibration] Dampening bias for class {top_code}")
+        # On réduit légèrement le pic pour redistribuer vers les autres
+        final_probas[0][top_idx] *= 0.8
+        final_probas[0] /= final_probas[0].sum()
+
+    print(f"[DEBUG]   -> META-RESULT: {target_classes[np.argmax(final_probas[0])]} ({final_probas[0].max()*100:.1f}%)")
     
     return final_probas[0]
 
