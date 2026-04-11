@@ -186,18 +186,31 @@ print("[inference] ALL ARTIFACTS LOADED SUCCESSFULLY")
 # 4. Fonctions de preprocessing
 # ══════════════════════════════════════════
 
+# Regex alignées strictement sur le notebook daa2a0a0
+UNITS_REGEX = re.compile(r'\b\d+[\.,]?\d*\s?(cm|mm|m|kg|g|l|ml|watt|volt|ah|hz)\b', re.I)
+NUM_REGEX = re.compile(r'\b\d+[\d\.,]*\b')
+HTML_REGEX = re.compile(r'&[a-zA-Z0-9#]+;')
+NON_WORD_REGEX = re.compile(r'[^\w\s]')
+
 def clean_text(text: str) -> str:
-    """Nettoyage texte robuste - Aligné sur production."""
+    """Nettoyage texte AVANCÉ - Copie conforme de normalize_clean du notebook."""
     if not isinstance(text, str) or not text:
         return ""
     
-    # Normalisation NFKD pour les accents
+    # 1. Normalisation et passage en minuscule
     text = unicodedata.normalize('NFKD', text.lower())
-    # Nettoyage regex de base
-    text = re.sub(r'<.*?>', ' ', text)
-    text = re.sub(r'[^a-z0-9àâäéèêëîïôöùûüç]', ' ', text)
     
-    # Nettoyage spaCy (lemmatisation)
+    # 2. Nettoyage Regex (Strict Notebook)
+    text = re.sub(r'<.*?>|http\S+', ' ', text)
+    text = HTML_REGEX.sub(' ', text)
+    text = NON_WORD_REGEX.sub(' ', text)
+    text = UNITS_REGEX.sub(' ', text)
+    text = NUM_REGEX.sub(' ', text)
+    
+    # 3. Stop-words Anglais (liste spécifique du notebook)
+    text = re.sub(r'\b(english|the|and|for|with|you|your|can|will|this|that|from|are|not|but|they|their|them|his|her|its|our|my|me|him|she|he|it|be|is|was|were|have|has|had|do|does|did|of|in|on|at|to|by|a|an)\b', ' ', text)
+    
+    # 4. spaCy (Lemmatisation fr)
     doc = nlp(text)
     tokens = [token.lemma_.strip() for token in doc 
               if not token.is_stop and not token.is_punct and len(token.lemma_) > 2]
@@ -343,8 +356,7 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     print("\n[DEBUG] --- ETAPE 6: META-LEARNER FUSION ---")
     meta_probas_raw = meta_learner.predict_proba(stacking_input)[0]
     
-    # --- CONSENSUS GUARD (Nouveauté) ---
-    # On vérifie si les autres modèles sont d'accord avec le gagnant
+    # --- CONSENSUS GUARD (Renforcement) ---
     meta_winner_idx = np.argmax(meta_probas_raw)
     lgbm_winner_idx = np.argmax(lgbm_probas[0])
     cb_winner_idx = np.argmax(cb_probas[0])
@@ -353,14 +365,14 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     if lgbm_winner_idx == meta_winner_idx: consensus_score += 1
     if cb_winner_idx == meta_winner_idx: consensus_score += 1
     
-    # Si le gagnant est seul contre tous avec une confiance suspecte (>80%)
-    if consensus_score == 0 and meta_probas_raw[meta_winner_idx] > 0.80:
-        print(f"[DEBUG]   [Consensus] ALERTE: Le gagnant est isolé. Réduction de confiance.")
-        meta_probas_raw[meta_winner_idx] *= 0.5 # On sabre de moitié
+    # Si le gagnant est SEUL (0 consensus) avec une confiance forte (>70%)
+    # On sabre massivement (x0.3) pour laisser passer le consensus des autres modèles
+    if consensus_score == 0 and meta_probas_raw[meta_winner_idx] > 0.70:
+        print(f"[DEBUG]   [Consensus] ALERTE: Le gagnant {target_classes[meta_winner_idx]} est isolé. RECOURS AU CONSENSUS.")
+        meta_probas_raw[meta_winner_idx] *= 0.3 
         meta_probas_raw /= meta_probas_raw.sum()
 
     # --- LISSAGE FINAL (T=1.5) ---
-    # Permet d'ouvrir le Top-5 et d'éviter les "blocages" à 99%
     final_logits = np.log(np.clip(meta_probas_raw, 1e-7, 1.0))
     exp_probas = np.exp(final_logits / 1.5)
     final_probas = exp_probas / exp_probas.sum()
@@ -368,9 +380,10 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     # --- CALIBRATION ANTI-BIAIS (Cibles : Magazines, Meubles Entrée, Jeux de Société) ---
     top_idx = np.argmax(final_probas)
     top_code = int(target_classes[top_idx])
-    if top_code in (1140, 2582, 1280) and final_probas[top_idx] > 0.80:
+    if top_code in (1140, 2582, 1280) and final_probas[top_idx] > 0.60:
         print(f"[DEBUG]   [Calibration] Dampening bias for {top_code}")
-        final_probas[top_idx] *= 0.7
+        # On réduit plus fort (x0.5) pour casser la dominance de ces classes
+        final_probas[top_idx] *= 0.5
         final_probas /= final_probas.sum()
 
     print(f"[DEBUG]   -> META-RESULT FINAL (T=1.5): {target_classes[np.argmax(final_probas)]} ({final_probas.max()*100:.1f}%)")
