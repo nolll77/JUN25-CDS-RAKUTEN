@@ -343,18 +343,40 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     
     # 6. Meta-Learner + Calibration Finale
     print("\n[DEBUG] --- ETAPE 6: META-LEARNER FUSION ---")
-    final_probas = meta_learner.predict_proba(stacking_input)
+    meta_probas_raw = meta_learner.predict_proba(stacking_input)[0]
     
-    # Anti-biais (Penalty sur 1140 et 2582 si > 85%)
-    top_idx = np.argmax(final_probas[0])
-    top_code = int(target_classes[top_idx])
-    if top_code in (1140, 2582) and final_probas[0][top_idx] > 0.85:
-        print(f"[DEBUG]   [Calibration] Dampening bias for {top_code} (Magazines/Entrée)")
-        final_probas[0][top_idx] *= 0.8
-        final_probas[0] /= final_probas[0].sum()
+    # --- CONSENSUS GUARD (Nouveauté) ---
+    # On vérifie si les autres modèles sont d'accord avec le gagnant
+    meta_winner_idx = np.argmax(meta_probas_raw)
+    lgbm_winner_idx = np.argmax(lgbm_probas[0])
+    cb_winner_idx = np.argmax(cb_probas[0])
+    
+    consensus_score = 0
+    if lgbm_winner_idx == meta_winner_idx: consensus_score += 1
+    if cb_winner_idx == meta_winner_idx: consensus_score += 1
+    
+    # Si le gagnant est seul contre tous avec une confiance suspecte (>80%)
+    if consensus_score == 0 and meta_probas_raw[meta_winner_idx] > 0.80:
+        print(f"[DEBUG]   [Consensus] ALERTE: Le gagnant est isolé. Réduction de confiance.")
+        meta_probas_raw[meta_winner_idx] *= 0.5 # On sabre de moitié
+        meta_probas_raw /= meta_probas_raw.sum()
 
-    print(f"[DEBUG]   -> META-RESULT FINAL: {target_classes[np.argmax(final_probas[0])]} ({final_probas[0].max()*100:.1f}%)")
-    return final_probas[0]
+    # --- LISSAGE FINAL (T=1.5) ---
+    # Permet d'ouvrir le Top-5 et d'éviter les "blocages" à 99%
+    final_logits = np.log(np.clip(meta_probas_raw, 1e-7, 1.0))
+    exp_probas = np.exp(final_logits / 1.5)
+    final_probas = exp_probas / exp_probas.sum()
+    
+    # --- CALIBRATION ANTI-BIAIS (Cibles : Magazines, Meubles Entrée, Jeux de Société) ---
+    top_idx = np.argmax(final_probas)
+    top_code = int(target_classes[top_idx])
+    if top_code in (1140, 2582, 1280) and final_probas[top_idx] > 0.80:
+        print(f"[DEBUG]   [Calibration] Dampening bias for {top_code}")
+        final_probas[top_idx] *= 0.7
+        final_probas /= final_probas.sum()
+
+    print(f"[DEBUG]   -> META-RESULT FINAL (T=1.5): {target_classes[np.argmax(final_probas)]} ({final_probas.max()*100:.1f}%)")
+    return final_probas
 
 
 def predict_mlp_only(X_scaled: np.ndarray) -> np.ndarray:
