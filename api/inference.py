@@ -237,22 +237,20 @@ def extract_tfidf_svd_features(title: str, description: str = "") -> np.ndarray:
 
 
 def extract_image_features(image_path: str) -> np.ndarray:
-    """EfficientNet/SVD (250) + métadonnées (3) = 253 dims."""
+    """EfficientNet/SVD (250) + métadonnées réelles (3) = 253 dims."""
     img = Image.open(image_path).convert("RGB")
     w, h = img.size
-    
-    # NOTE: Dans NB2 line 2831, les métadonnées sont (title_len, word_count, image_width)
-    # Dans NB3, elles sont scalées par le scaler GLOBAL. Donc on les laisse brutes ici.
+    size_kb = os.path.getsize(image_path) / 1024.0
     
     img_tensor = img_transform(img).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
         embedding = efficientnet_model(img_tensor).cpu().numpy()
     
-    # SVD + Scaler intermédiaire Image (250 dims) selon NB2 line 42431
+    # SVD + Scaler intermédiaire Image (250 dims)
     img_svd_raw = svd_img.transform(embedding)
     img_svd_scaled = scaler_image_svd.transform(img_svd_raw)
     
-    return img_svd_scaled, w
+    return img_svd_scaled, np.array([[w, h, size_kb]], dtype=np.float32)
 
 def build_feature_vector(text: str, image_path: str) -> tuple[np.ndarray, np.ndarray]:
     """Prépare le vecteur de 1131 dims (CamemBERT, Text SVD, Image SVD, Meta)."""
@@ -264,12 +262,12 @@ def build_feature_vector(text: str, image_path: str) -> tuple[np.ndarray, np.nda
     full_text_clean = (title_cl + " " + desc_cl).strip()
     camembert_vec = extract_camembert_embedding(full_text_clean)
     
-    # 3. Image (SVD 250 + Metadata image_width 1)
+    # 3. Image (SVD 250 + Metadata image 3)
     if image_path and os.path.exists(image_path):
-        img_svd_scaled, img_w = extract_image_features(image_path)
-        # Métadonnées brutes (title_len, word_count, image_width)
-        meta_features = np.array([[len(text), len(text.split()), img_w]], dtype=np.float32)
-        img_vec = np.hstack([img_svd_scaled, meta_features])
+        img_svd_scaled, meta_raw = extract_image_features(image_path)
+        # Scaler spécifique pour les métadonnées image (w, h, size)
+        meta_scaled = scaler_meta.transform(meta_raw)
+        img_vec = np.hstack([img_svd_scaled, meta_scaled])
     else:
         img_vec = np.zeros((1, 253))
         
