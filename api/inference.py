@@ -266,45 +266,37 @@ def extract_image_features(image_path: str) -> np.ndarray:
     return img_svd_scaled, np.array([[w, h, size_kb]], dtype=np.float32)
 
 def build_feature_vector(text: str, image_path: str) -> tuple[np.ndarray, np.ndarray]:
-    """Prépare le vecteur de 1131 dims avec normalisation par bloc (Block-wise scaling)."""
+    """Prépare le vecteur de 1131 dims conforme à l'entraînement du notebook."""
     
     # 1. Texte SVD (110)
     text_svd_vec, title_cl, desc_cl = extract_tfidf_svd_features(text, "")
     
     # 2. CamemBERT (768)
     full_text_clean = (title_cl + " " + desc_cl).strip()
-    print(f"[DEBUG] Texte nettoyé pour CamemBERT: '{full_text_clean}'")
+    print(f"[DEBUG] Texte nettoyé (spaCy): '{full_text_clean}'")
     camembert_vec = extract_camembert_embedding(full_text_clean)
     
     # 3. Image (SVD 250 + Metadata image 3)
     if image_path and os.path.exists(image_path):
         img_svd_scaled, meta_raw = extract_image_features(image_path)
+        # Scaler spécifique pour les métadonnées (MinMaxScaler du notebook)
         meta_scaled = scaler_meta.transform(meta_raw)
         img_vec = np.hstack([img_svd_scaled, meta_scaled])
     else:
         img_vec = np.zeros((1, 253))
         
-    # --- BLOCK-WISE SCALING (NORMALISATION MANUELLE) ---
-    # On sature le signal pour éviter qu'un bloc (ex: image std=27) n'écrase les autres.
-    def normalize_block(vec):
-        std = vec.std()
-        return vec / (std + 1e-6) if std > 1.5 else vec
-
-    camembert_vec_norm = normalize_block(camembert_vec)
-    text_svd_vec_norm = normalize_block(text_svd_vec)
-    img_vec_norm = normalize_block(img_vec)
-
-    X_raw = np.hstack([camembert_vec_norm, text_svd_vec_norm, img_vec_norm]).astype(np.float32)
+    # Concaténation brute comme dans le notebook Step 8
+    X_raw = np.hstack([camembert_vec, text_svd_vec, img_vec]).astype(np.float32)
     
-    # 4. Global scaling
+    # 4. Global scaling (StandardScaler fitted on X_final)
     X_scaled_raw = scaler_features.transform(X_raw).astype(np.float32)
     X_scaled = np.clip(X_scaled_raw, -3.0, 3.0)
     
-    print(f"\n[DEBUG] --- STATS PAR BLOC (Normalisés) ---")
-    print(f"[DEBUG] CamemBERT (768): mean={camembert_vec_norm.mean():.4f}, std={camembert_vec_norm.std():.4f}")
-    print(f"[DEBUG] Text SVD (110):  mean={text_svd_vec_norm.mean():.4f}, std={text_svd_vec_norm.std():.4f}")
-    print(f"[DEBUG] Image block (253): mean={img_vec_norm.mean():.4f}, std={img_vec_norm.std():.4f}")
-    print(f"[DEBUG] X_raw Total: mean={X_raw.mean():.4f}, std={X_raw.std():.4f}")
+    print(f"\n[DEBUG] --- STATS FEATURES ---")
+    print(f"[DEBUG] CamemBERT std: {camembert_vec.std():.4f}")
+    print(f"[DEBUG] Text SVD std:  {text_svd_vec.std():.4f}")
+    print(f"[DEBUG] Image block std: {img_vec.std():.4f}")
+    print(f"[DEBUG] X_scaled mean: {X_scaled.mean():.4f}, std: {X_scaled.std():.4f}")
     
     return X_raw, X_scaled
 
