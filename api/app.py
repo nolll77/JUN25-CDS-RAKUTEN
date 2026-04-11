@@ -44,8 +44,8 @@ def startup_event():
     logger.info(f"   Swagger Docs  : http://localhost:8000/docs")
     logger.info("------------------------------------------------")
     logger.info("   LIENS DE PRODUCTION")
-    logger.info("   Vercel        : https://jun25-cds-rakuten.vercel.app/")
-    logger.info("   HF Spaces     : https://huggingface.co/spaces/nolll77/JUN25-CDS-RAKUTEN")
+    logger.info("   Vercel        : https://jun-25-cds-rakuten.vercel.app/")
+    logger.info("   HF Spaces     : https://huggingface.co/spaces/nolll77/rakuten-multimodal-api")
     logger.info("------------------------------------------------")
 
 app.add_middleware(
