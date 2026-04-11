@@ -2,6 +2,14 @@ import sys
 import os
 from pathlib import Path
 
+import socket
+import logging
+import warnings
+
+# Suppression des alertes persistantes (scikit-learn et LightGBM)
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+warnings.filterwarnings("ignore", category=UserWarning, module="lightgbm")
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
@@ -10,11 +18,32 @@ from typing import Optional
 from pydantic import BaseModel
 from api.inference import get_top_predictions, set_mode, get_current_mode
 
+def get_frontend_url():
+    """Détecte si le frontend tourne sur 8080 ou 8081."""
+    for port in [8081, 8080, 5173]:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('localhost', port)) == 0:
+                return f"http://localhost:{port}"
+    return "http://localhost:8081" # Valeur par défaut si non détecté
+
 app = FastAPI(
     title="Rakuten Inference API",
     description="API de classification multimodale (Texte + Image) pour les produits Rakuten.",
     version="2.0.0"
 )
+
+logger = logging.getLogger("uvicorn")
+
+@app.on_event("startup")
+def startup_event():
+    url_base = get_frontend_url()
+    logger.info("════════════════════════════════════════════════")
+    logger.info("   🚀 RAKUTEN PROJECT - RACCOURCIS LOCAUX")
+    logger.info(f"   🏠 Accueil      : {url_base}/")
+    logger.info(f"   🖼️  Multimodal   : {url_base}/demo/multimodal")
+    logger.info(f"   📝 Texte seul   : {url_base}/demo/texte")
+    logger.info(f"   📚 Swagger Docs : http://localhost:8000/docs")
+    logger.info("════════════════════════════════════════════════")
 
 app.add_middleware(
     CORSMiddleware,
