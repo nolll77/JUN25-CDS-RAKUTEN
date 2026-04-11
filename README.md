@@ -1,5 +1,6 @@
 ---
 title: Rakuten Multimodal API
+emoji: none
 colorFrom: red
 colorTo: gray
 sdk: docker
@@ -8,22 +9,24 @@ pinned: false
 
 # Rakuten Multimodal Classification Engine
 
-Ce projet répond au challenge [Rakuten / Challenge Data ENS](https://challengedata.ens.fr/challenges/35). Il propose une approche de classification multimodale à grande échelle pour catégoriser les produits du catalogue Rakuten France en combinant texte et image.
+Ce moteur de classification de produits exploite le Deep Learning Multimodal (Texte + Image) pour résoudre le challenge **<a href="https://challengedata.ens.fr/challenges/35">Rakuten / Challenge Data ENS</a>**. 
 
-**Objectif** : Prédire le type de produit en fusionnant les données textuelles (désignations, descriptions) et visuelles (images).
+> This challenge focuses on the topic of large-scale product type code multimodal (text and image) classification where the goal is to predict each product's type code as defined by the French e-commerce platform Rakuten.
+
+**Objectif** : Prédire le type de produit à grande échelle en fusionnant les signaux textuels (désignations, descriptions) et visuels (images).
 
 ## Points Forts
-- Architecture hybride : Fusion de modèles Transformers (CamemBERT) et de Computer Vision (EfficientNet).
-- Stacking multicouche : Système d'ensemble combinant LightGBM, CatBoost, Régression Logistique et MLP.
-- Inférence Stabilisée : Pipeline aligné sur les données d'entraînement (tokenisation [CLS], normalisation, clipping).
-- Déploiement Automatise : Backend FastAPI sur Hugging Face Spaces et Frontend React sur Vercel.
+- **Architecture hybride** : Fusion de modèles Transformers (CamemBERT) et de Computer Vision (EfficientNet).
+- **Stacking multicouche** : Système d'ensemble combinant LightGBM, CatBoost, Régression Logistique et MLP.
+- **Inférence Stabilisée** : Pipeline aligné sur les données d'entraînement (tokenisation [CLS], normalisation, clipping).
+- **Déploiement Automatisé** : Backend FastAPI sur Hugging Face Spaces et Frontend React sur Vercel.
 
 ## Architecture du Pipeline
 L'inférence génère un vecteur de caractéristiques de 1131 dimensions :
-1. Texte (768) : Embeddings CamemBERT (token [CLS]).
-2. Texte SVD (110) : Désignation (30) + Description (80) via TF-IDF & SVD.
-3. Image Vision (250) : Features EfficientNet réduites par SVD.
-4. Metadata (3) : [Longueur titre, Nombre de mots, Largeur image].
+1. **Texte (768)** : Embeddings CamemBERT (token [CLS]).
+2. **Texte SVD (110)** : Désignation (30) + Description (80) via TF-IDF & SVD.
+3. **Image Vision (250)** : Features EfficientNet réduites par SVD.
+4. **Metadata (3)** : [Longueur titre, Nombre de mots, Largeur image].
 
 ## Installation et Lancement Local
 
@@ -47,12 +50,12 @@ cd frontend && npm install && npm run dev
 ```
 
 ### 4. Workflow Git LFS (Modèles Volumineux)
-Le projet utilise Git LFS pour gérer les fichiers modèles (.joblib, .cbm, etc.). 
-- Modifications : Travaillez normalement, Git LFS gère les binaires en arrière-plan.
-- Premier Clone : N'oubliez pas de lancer git lfs pull pour récupérer les vrais fichiers binaires.
+Le projet utilise **Git LFS** pour gérer les fichiers modèles (.joblib, .cbm, etc.). 
+- **Modifications** : Travaillez normalement, Git LFS gère les binaires en arrière-plan.
+- **Premier Clone** : N'oubliez pas de lancer `git lfs pull` pour récupérer les vrais fichiers binaires à la place des pointeurs.
 
 ## Performance et Qualité
-Le système a été validé sur des cas complexes (mots courts, désignations ambiguës) avec une précision stabilisée.
+Le système a été validé sur des cas complexes (mots courts, désignations ambiguës) avec une précision stabilisée après résolution de la dérive de classification.
 
 ---
 
