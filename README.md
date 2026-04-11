@@ -1,20 +1,17 @@
 ---
 title: Rakuten Multimodal API
-emoji: 📦
+emoji: none
 colorFrom: red
 colorTo: gray
 sdk: docker
 pinned: false
 ---
 
-<div align="center">
-  <img src="docs/liora_logo.png" alt="Liora Logo" width="120" />
-  <p>Un projet développé dans le cadre du cursus <b><a href="https://liora.io/">Liora</a></b></p>
-</div>
-
 # Rakuten Multimodal Classification Engine
 
 Ce moteur de classification de produits exploite le Deep Learning Multimodal (Texte + Image) pour résoudre le challenge **<a href="https://challengedata.ens.fr/challenges/35">Rakuten / Challenge Data ENS</a>**. 
+
+> This challenge focuses on the topic of large-scale product type code multimodal (text and image) classification where the goal is to predict each product's type code as defined by the French e-commerce platform Rakuten.
 
 **Objectif** : Prédire le type de produit à grande échelle en fusionnant les signaux textuels (désignations, descriptions) et visuels (images).
 
@@ -52,14 +49,25 @@ TOKENIZERS_PARALLELISM=false uvicorn api.app:app --host 0.0.0.0 --port 8000 --re
 cd frontend && npm install && npm run dev
 ```
 
-## Workflow Git LFS (Modèles Volumineux)
+### 4. Workflow Git LFS (Modèles Volumineux)
 Le projet utilise **Git LFS** pour gérer les fichiers modèles (.joblib, .cbm, etc.). 
 - **Modifications** : Travaillez normalement, Git LFS gère les binaires en arrière-plan.
 - **Premier Clone** : N'oubliez pas de lancer `git lfs pull` pour récupérer les vrais fichiers binaires à la place des pointeurs.
 
+## Performance et Qualité
+Le système a été validé sur des cas complexes (mots courts, désignations ambiguës) avec une précision stabilisée après résolution de la dérive de classification.
+
 ---
+
 **Équipe** : 
 - Noel CHING (Lead Data Scientist, ML Ops & Architecture)
 - Ediz OZKOHEN (Data Science Associate, Technical Writing & Communications)  
 
 **Statut** : API Déployée et Stabilisée (Avril 2026)
+
+---
+
+<div align="center">
+  <img src="docs/liora_logo.png" alt="Liora Logo" width="120" />
+  <p>Un projet développé dans le cadre du cursus <b><a href="https://liora.io/">Liora</a></b></p>
+</div>
