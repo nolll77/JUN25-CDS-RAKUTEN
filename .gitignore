@@ -113,6 +113,8 @@ logs/
 # Large output files
 output/
 *.html
+!frontend/index.html
+!frontend/src/lib/
 output_preproc/
 results_storage/
 .REFERENCES_INTERNES.md
