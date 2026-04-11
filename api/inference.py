@@ -321,16 +321,19 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     cb_probas = catboost_model.predict_proba(X_scaled)
     print(f"[DEBUG]   -> CatBoost: {target_classes[np.argmax(cb_probas[0])]} ({cb_probas[0].max()*100:.1f}%)")
     
-    # 3. Logistic Regression
-    lr_probas = lr_model.predict_proba(X_scaled)
-    print(f"[DEBUG]   -> LogReg: {target_classes[np.argmax(lr_probas[0])]} ({lr_probas[0].max()*100:.1f}%)")
+    # 3. Logistic Regression (Lissage par puissance 0.5 pour réduire la saturation)
+    lr_probas_raw = lr_model.predict_proba(X_scaled)
+    lr_probas = np.power(lr_probas_raw, 0.5)
+    lr_probas /= lr_probas.sum(axis=1, keepdims=True)
+    print(f"[DEBUG]   -> LogReg: {target_classes[np.argmax(lr_probas[0])]} ({lr_probas[0].max()*100:.1f}%) [smoothed]")
     
-    # 4. MLP
+    # 4. MLP (Lissage par Température T=2.0 sur les logits)
     with torch.no_grad():
         tensor_input = torch.from_numpy(X_scaled.copy()).float().to(DEVICE)
         logits = mlp_model(tensor_input)
-        mlp_probas = torch.softmax(logits, dim=1).cpu().numpy()
-    print(f"[DEBUG]   -> MLP: {target_classes[np.argmax(mlp_probas[0])]} ({mlp_probas[0].max()*100:.1f}%)")
+        # On divise les logits par 2.0 pour "calmer" la confiance du modèle
+        mlp_probas = torch.softmax(logits / 2.0, dim=1).cpu().numpy()
+    print(f"[DEBUG]   -> MLP: {target_classes[np.argmax(mlp_probas[0])]} ({mlp_probas[0].max()*100:.1f}%) [smoothed]")
     
     # 5. Fusion pour Meta-Learner (108 features)
     stacking_input = np.hstack([
