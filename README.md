@@ -63,4 +63,5 @@ Le système a été validé sur des cas complexes (mots courts, désignations am
 **Équipe** : 
 - Noel CHING (Lead Data Scientist, ML Ops & Architecture)
 - Ediz OZKOHEN (Data Science Associate, Technical Writing & Communications)  
+
 **Statut** : API Déployée et Stabilisée (Avril 2026)
