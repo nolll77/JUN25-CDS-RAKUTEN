@@ -74,7 +74,7 @@ Les étapes détaillées du preprocessing (nb2) et de la modélisation (nb3), in
 ### Stack Technologique en Production
 Le projet est déployé et disponible 24/7 via l'infrastructure suivante :
 - **Backend API (Hugging Face)** : [Hébergement du modèle et de la logique d'inférence](https://huggingface.co/spaces/nolll77/rakuten-multimodal-api/tree/main).
-- **Interface Démo (Vercel)** : [Application React interactive pour tests en temps réel](https://jun-25-cds-rakuten-git-main-nolll77s-projects.vercel.app/demo/multimodal).
+- **Interface Démo Web (Vercel)** : [Application React interactive pour tests en temps réel](https://jun-25-cds-rakuten-git-main-nolll77s-projects.vercel.app/demo/multimodal).
 
 ## Performance et Qualité
 Le système a été validé sur des cas complexes (mots courts, désignations ambiguës) avec une précision stabilisée après résolution de la dérive de classification.
