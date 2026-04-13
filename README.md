@@ -90,6 +90,6 @@ Le système a été validé sur des cas complexes (mots courts, désignations am
 ---
 
 <div align="center">
-  <img src="docs/liora_logo.png" alt="Liora Logo" width="120" />
+  <img src="https://media.githubusercontent.com/media/nolll77/JUN25-CDS-RAKUTEN/main/docs/liora_logo.png" alt="Liora Logo" width="120" />
   <p>Un projet développé dans le cadre du cursus <b><a href="https://liora.io/">Liora</a></b></p>
 </div>
