@@ -50,14 +50,13 @@ CURRENT_MODE = "stacking"
 
 RAKUTEN_MAPPING = {
     10: "Livres occasion", 40: "Jeux vidéo", 50: "Accessoires jeux vidéo",
-    60: "Consoles", 1140: "Magazines", 1160: "Livres BD & Mangas",
-    1180: "Livres jeunesse", 1280: "Jeux de société traditionnels", 1281: "Jouets & Figurines",
-    1300: "Jeux plein air", 1301: "Piscines & Accessoires", 1302: "Mobilier jardin",
-    1320: "Literie", 1560: "Décoration intérieure", 1920: "Rangement & Organisation",
-    1940: "Linge de maison", 2060: "Meubles salle de bain", 2220: "Meubles TV & Hi-Fi",
-    2280: "Meubles chambre", 2403: "Luminaires", 2462: "Tapis & Moquettes",
-    2522: "Meubles cuisine", 2582: "Meubles entrée", 2583: "Meubles salon",
-    2585: "Meubles bureau", 2705: "Animalerie", 2905: "Autres",
+    60: "Consoles de jeu", 1140: "Figurines", 1160: "Cartes de collection",
+    1180: "Jeux de plateau", 1280: "Jouets enfants / Peluches", 1281: "Jeux enfants",
+    1300: "Jeux de plein air", 1320: "Maternité / Puériculture", 1560: "Mobilier intérieur",
+    1920: "Linge de maison", 1940: "Alimentation", 2060: "Décoration intérieur",
+    2220: "Animalerie", 2280: "Magazines / Revues", 2403: "Livres jeunesse",
+    2462: "Jeux vidéo dématérialisés", 2522: "Papeterie / Fournitures", 2582: "Mobilier de jardin",
+    2583: "Piscine / Spa", 2585: "Bricolage / Outillage", 2705: "Livres neufs", 2905: "Jeu PC",
 }
 
 # ══════════════════════════════════════════
@@ -92,9 +91,9 @@ svd_name = joblib.load(PREPROCESSORS_DIR / "svd_designation.joblib")
 svd_img = joblib.load(PREPROCESSORS_DIR / "svd_image_embeddings.joblib")
 scaler_meta = joblib.load(PREPROCESSORS_DIR / "image_metadata_scaler.joblib")
 
-# -- Scalers intermédiaires (EXTRAITS DU NOTEBOOK) --
-scaler_text_svd = joblib.load(MISSING_SCALERS_DIR / "scaler_text_svd.joblib")
-scaler_image_svd = joblib.load(MISSING_SCALERS_DIR / "scaler_image_svd.joblib")
+# -- Scalers de Blocs (Manquants mais présents dans le workflow réel) --
+scaler_text_svd = joblib.load(PREPROCESSORS_DIR / "scaler_text_svd.joblib")
+scaler_image_svd = joblib.load(PREPROCESSORS_DIR / "scaler_image_svd.joblib")
 
 # -- Scaler final --
 scaler_features = joblib.load(PREPROCESSORS_DIR / "preprocessing_scaler_features.joblib")
@@ -193,24 +192,17 @@ HTML_REGEX = re.compile(r'&[a-zA-Z0-9#]+;')
 NON_WORD_REGEX = re.compile(r'[^\w\s]')
 
 def clean_text(text: str) -> str:
-    """Nettoyage texte AVANCÉ - Copie conforme de normalize_clean du notebook."""
+    """Nettoyage texte robuste - Aligné sur production."""
     if not isinstance(text, str) or not text:
         return ""
     
-    # 1. Normalisation et passage en minuscule
+    # Normalisation NFKD pour les accents
     text = unicodedata.normalize('NFKD', text.lower())
+    # Nettoyage regex de base
+    text = re.sub(r'<.*?>', ' ', text)
+    text = re.sub(r'[^a-z0-9àâäéèêëîïôöùûüç]', ' ', text)
     
-    # 2. Nettoyage Regex (Strict Notebook)
-    text = re.sub(r'<.*?>|http\S+', ' ', text)
-    text = HTML_REGEX.sub(' ', text)
-    text = NON_WORD_REGEX.sub(' ', text)
-    text = UNITS_REGEX.sub(' ', text)
-    text = NUM_REGEX.sub(' ', text)
-    
-    # 3. Stop-words Anglais (liste spécifique du notebook)
-    text = re.sub(r'\b(english|the|and|for|with|you|your|can|will|this|that|from|are|not|but|they|their|them|his|her|its|our|my|me|him|she|he|it|be|is|was|were|have|has|had|do|does|did|of|in|on|at|to|by|a|an)\b', ' ', text)
-    
-    # 4. spaCy (Lemmatisation fr)
+    # Nettoyage spaCy (lemmatisation)
     doc = nlp(text)
     tokens = [token.lemma_.strip() for token in doc 
               if not token.is_stop and not token.is_punct and len(token.lemma_) > 2]
@@ -233,20 +225,21 @@ def extract_tfidf_svd_features(title: str, description: str = "") -> np.ndarray:
     title_clean = clean_text(title)
     desc_clean = clean_text(description)
     
-    # 1. Designation SVD (30 dims)
-    tfidf_name_vec = tfidf_name.transform([title_clean])
+    # 1. Designation SVD (30 dims) - Le notebook fit sur clean mais transform sur RAW
+    tfidf_name_vec = tfidf_name.transform([title]) # Utilise le titre brut comme le notebook
     svd_name_vec = svd_name.transform(tfidf_name_vec)
     
     # 2. Description SVD (80 dims)
     tfidf_desc_vec = tfidf_desc.transform([desc_clean])
     svd_desc_vec = svd_desc.transform(tfidf_desc_vec)
     
-    # 3. Fusion (ORDRE : Description(80) puis Designation(30) selon nb2 line 2418)
-    combined_svd = np.hstack([svd_desc_vec, svd_name_vec])
+    # 3. Concatenation (ORDRE Notebook cell #4bis : Desc(80) puis Name(30))
+    combined_svd = np.hstack([svd_desc_vec, svd_name_vec]).astype(np.float32)
     
-    # 4. Scaler intermédiaire (110 dims)
-    scaled_svd = scaler_text_svd.transform(combined_svd)
-    return scaled_svd, title_clean, desc_clean
+    # 4. Bloc Scaling (INTERMEDIAIRE) - Aligné sur training
+    combined_svd = scaler_text_svd.transform(combined_svd).astype(np.float32)
+    
+    return combined_svd, title_clean, desc_clean
 
 
 def extract_image_features(image_path: str) -> np.ndarray:
@@ -263,51 +256,70 @@ def extract_image_features(image_path: str) -> np.ndarray:
     img_svd_raw = svd_img.transform(embedding)
     img_svd_scaled = scaler_image_svd.transform(img_svd_raw)
     
-    return img_svd_scaled, np.array([[w, h, size_kb]], dtype=np.float32)
+    return img_svd_scaled, w
 
-def build_feature_vector(text: str, image_path: str) -> tuple[np.ndarray, np.ndarray]:
-    """Prépare le vecteur de 1131 dims conforme à l'entraînement du notebook."""
+
+def build_feature_vector(text: str, image_path: str, debug: bool = True) -> tuple[np.ndarray, np.ndarray, float, float]:
+    """Prépare le vecteur de 1131 dims + Tracking temps + Normes."""
     
-    # 1. Texte SVD (110)
+    # 1. Bloc Texte
+    t0_text = time.time()
     text_svd_vec, title_cl, desc_cl = extract_tfidf_svd_features(text, "")
+    
+    if debug:
+        print(f"[DEBUG] Texte nettoyé (spaCy): '{title_cl}' 🔵🔵🔵")
     
     # 2. CamemBERT (768)
     full_text_clean = (title_cl + " " + desc_cl).strip()
-    print(f"[DEBUG] Texte nettoyé (spaCy): '{full_text_clean}'")
     camembert_vec = extract_camembert_embedding(full_text_clean)
+    t_text = time.time() - t0_text
     
-    # 3. Image (SVD 250 + Metadata image 3)
+    # 3. Image (SVD 250 + Metadata image_width 1)
+    t0_img = time.time()
     if image_path and os.path.exists(image_path):
-        img_svd_scaled, meta_raw = extract_image_features(image_path)
-        # Scaler spécifique pour les métadonnées (MinMaxScaler du notebook)
-        meta_scaled = scaler_meta.transform(meta_raw)
+        img_svd_scaled, img_w = extract_image_features(image_path)
+        # Métadonnées brutes (title_len, word_count, image_width)
+        meta_features = np.array([[len(text), len(text.split()), img_w]], dtype=np.float32)
+        # FIX : Sécurité contre le scaler de métadonnées corrompu (clip entre -1 et 1)
+        meta_scaled = np.clip(scaler_meta.transform(meta_features), -1, 1)
         img_vec = np.hstack([img_svd_scaled, meta_scaled])
-        # HARD BRIDGE : On force l'image à ne pas dépasser un poids raisonnable (std=1)
-        img_vec = img_vec / (img_vec.std() + 1e-6)
     else:
         img_vec = np.zeros((1, 253))
-        
-    # Concaténation brute comme dans le notebook Step 8
+    t_img = time.time() - t0_img
+
+    # Concaténation brute
     X_raw = np.hstack([camembert_vec, text_svd_vec, img_vec]).astype(np.float32)
-    
-    # 4. Global scaling (StandardScaler fitted on X_final)
+
+    if debug:
+        print("\n[DEBUG] --- STATS FEATURES ---")
+        print(f"[DEBUG] CamemBERT std: {camembert_vec.std():.4f}")
+        print(f"[DEBUG] Text SVD std:  {text_svd_vec.std():.4f}")
+        print(f"[DEBUG] Image block std: {img_vec.std():.4f}")
+        
+        # Modality Norms
+        norm_cam = np.linalg.norm(camembert_vec)
+        norm_txt = np.linalg.norm(text_svd_vec)
+        norm_img = np.linalg.norm(img_vec)
+        print(f"[DEBUG] Modality Norms (L2): CamemBERT={norm_cam:.2f} | TextSVD={norm_txt:.2f} | Image={norm_img:.2f}")
+
+    # 4. Scaler Global
     X_scaled_raw = scaler_features.transform(X_raw).astype(np.float32)
+    
+    # PROTECTION OPTIMALE: On réduit le clipping à +/- 3.0. 
+    # Au-delà de 3 sigmas, la LogReg et le MLP saturent et "étouffent" le signal de LightGBM.
     X_scaled = np.clip(X_scaled_raw, -3.0, 3.0)
     
-    print(f"\n[DEBUG] --- STATS FEATURES ---")
-    print(f"[DEBUG] CamemBERT std: {camembert_vec.std():.4f}")
-    print(f"[DEBUG] Text SVD std:  {text_svd_vec.std():.4f}")
-    print(f"[DEBUG] Image block std: {img_vec.std():.4f}")
-    print(f"[DEBUG] X_scaled mean: {X_scaled.mean():.4f}, std: {X_scaled.std():.4f}")
+    if debug:
+        print(f"[DEBUG] X_scaled (clipped 3.0): min={X_scaled.min():.4f}, max={X_scaled.max():.4f}")
     
-    return X_raw, X_scaled
+    return X_raw, X_scaled, t_text, t_img
 
 
 # ══════════════════════════════════════════
 # 5. Inférence Stacking
 # ══════════════════════════════════════════
 
-def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
+def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray, debug: bool = True) -> np.ndarray:
     """
     Inférence combinée :
     1. Obtenir probas LightGBM (moyenne folds)
@@ -318,65 +330,58 @@ def predict_stacking(X_raw: np.ndarray, X_scaled: np.ndarray) -> np.ndarray:
     6. Passer au meta_learner → probas finales (1, 27)
     """
     
-    print("\n[DEBUG] --- BASE MODELS PREDICTIONS ---")
-    
-    # 1. LightGBM
+    # 1. LightGBM (Folds)
     lgbm_probas = np.zeros((1, N_CLASSES))
+    if debug: print("\n[DEBUG] --- BASE MODELS PREDICTIONS ---")
     for i, m in enumerate(lgbm_models):
-        # NOTE: LightGBM a été entraîné sur X_raw (sans le scaler global)
         p = m.predict_proba(X_raw)
         lgbm_probas += p
-        print(f"[DEBUG]   -> LGBM Fold {i+1}: {target_classes[np.argmax(p[0])]} ({p[0].max()*100:.1f}%)")
+        if debug:
+            idx = np.argmax(p[0])
+            code = int(target_classes[idx])
+            label = RAKUTEN_MAPPING.get(code, "Inconnu")
+            conf = p[0][idx]
+            print(f"[DEBUG]   -> LGBM Fold {i+1}: {code} [{label}] ({conf*100:.1f}%)")
     lgbm_probas /= len(lgbm_models)
     
     # 2. CatBoost
     cb_probas = catboost_model.predict_proba(X_scaled)
-    print(f"[DEBUG]   -> CatBoost: {target_classes[np.argmax(cb_probas[0])]} ({cb_probas[0].max()*100:.1f}%)")
+    if debug:
+        idx = np.argmax(cb_probas[0])
+        code = int(target_classes[idx])
+        label = RAKUTEN_MAPPING.get(code, "Inconnu")
+        conf = cb_probas[0][idx]
+        print(f"[DEBUG]   -> CatBoost: {code} [{label}] ({conf*100:.1f}%)")
     
     # 3. Logistic Regression
     lr_probas_raw = lr_model.predict_proba(X_scaled)
-    # Lissage visuel (Power 0.5)
-    lr_p_smooth = np.power(lr_probas_raw, 0.5)
-    lr_p_smooth /= lr_p_smooth.sum(axis=1, keepdims=True)
-    print(f"[DEBUG]   -> LogReg (Smoothed T=2.0 eq): {target_classes[np.argmax(lr_p_smooth[0])]} ({lr_p_smooth[0].max()*100:.1f}%)")
+    if debug:
+        idx = np.argmax(lr_probas_raw[0])
+        code = int(target_classes[idx])
+        label = RAKUTEN_MAPPING.get(code, "Inconnu")
+        conf = lr_probas_raw[0][idx]
+        print(f"[DEBUG]   -> LogReg (Smoothed T=2.0 eq): {code} [{label}] ({conf*100:.1f}%)")
     
     # 4. MLP (Deep Learning)
     with torch.no_grad():
         tensor_input = torch.from_numpy(X_scaled.copy()).float().to(DEVICE)
         logits = mlp_model(tensor_input)
         mlp_probas_raw = torch.softmax(logits, dim=1).cpu().numpy()
-        # Lissage visuel (T=2.0)
-        mlp_p_smooth = torch.softmax(logits / 2.0, dim=1).cpu().numpy()
-    print(f"[DEBUG]   -> MLP (Smoothed T=2.0): {target_classes[np.argmax(mlp_p_smooth[0])]} ({mlp_p_smooth[0].max()*100:.1f}%)")
+    if debug:
+        idx = np.argmax(mlp_probas_raw[0])
+        code = int(target_classes[idx])
+        label = RAKUTEN_MAPPING.get(code, "Inconnu")
+        conf = mlp_probas_raw[0][idx]
+        print(f"[DEBUG]   -> MLP (Smoothed T=2.0): {code} [{label}] ({conf*100:.1f}%)")
     
-    # 5. Fusion pour Meta-Learner (RAW requis)
-    stacking_input = np.hstack([lgbm_probas, cb_probas, lr_probas_raw, mlp_probas_raw])
+    # 5. Fusion pour Meta-Learner
+    X_stack = np.hstack([lgbm_probas, cb_probas, lr_probas_raw, mlp_probas_raw])
     
-    # 6. Meta-Learner + VETO ABSOLU
-    print("\n[DEBUG] --- ETAPE 6: META-LEARNER FUSION ---")
-    meta_probas_raw = meta_learner.predict_proba(stacking_input)[0]
-    
-    # --- ANALYSE DU CONSENSUS ---
-    meta_winner_idx = np.argmax(meta_probas_raw)
-    lgbm_winner_idx = np.argmax(lgbm_probas[0])
-    cb_winner_idx = np.argmax(cb_probas[0])
-    lr_winner_idx = np.argmax(lr_probas_raw)
-    
-    # Consensus classique (2/3 models)
-    consensus_idx = None
-    if lgbm_winner_idx == cb_winner_idx: consensus_idx = lgbm_winner_idx
-    elif lgbm_winner_idx == lr_winner_idx: consensus_idx = lgbm_winner_idx
-    elif cb_winner_idx == lr_winner_idx: consensus_idx = cb_winner_idx
+    # 6. Meta-Learner (DÉCISION FINALE SANS VETO)
+    if debug: print("\n[DEBUG] --- ETAPE 6: META-LEARNER FUSION ---")
+    meta_probas_raw = meta_learner.predict_proba(X_stack)[0]
 
-    # VETO ABSOLU
-    if consensus_idx is not None and consensus_idx != meta_winner_idx:
-        print(f"[DEBUG] [VETO ABSOLU] Priorité au consensus : {target_classes[consensus_idx]}")
-        meta_probas_raw = np.zeros_like(meta_probas_raw)
-        meta_probas_raw[consensus_idx] = 0.95
-        meta_probas_raw[meta_winner_idx] = 0.05
-        # Pas besoin de normaliser car la somme est 1.0
-
-    print(f"[DEBUG] -> RESULTAT FINAL: {target_classes[np.argmax(meta_probas_raw)]}")
+    if debug: print(f"[DEBUG] -> RESULTAT FINAL: {target_classes[np.argmax(meta_probas_raw)]}")
     return meta_probas_raw
 
 
@@ -414,8 +419,8 @@ def get_top_predictions(text: str, image_path: str = None, top_k: int = 5):
     Si le stacking plante → fallback automatique vers MLP.
     """
     t0 = time.time()
-    X_raw, X_scaled = build_feature_vector(text, image_path)
-    t_features = time.time() - t0
+    X_raw, X_scaled, t_text, t_img = build_feature_vector(text, image_path)
+    t_feat_total = time.time() - t0
 
     mode_used = CURRENT_MODE
     t1 = time.time()
@@ -445,5 +450,5 @@ def get_top_predictions(text: str, image_path: str = None, top_k: int = 5):
             "proba": round(conf, 4)
         })
 
-    print(f"[inference] Mode={mode_used} | Features={t_features:.2f}s | Predict={t_predict:.2f}s")
+    print(f"[inference] Mode={mode_used} | Text={t_text:.2f}s | Img={t_img:.2f}s | Predict={t_predict:.2f}s")
     return results, mode_used

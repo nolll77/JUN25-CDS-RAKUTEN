@@ -11,7 +11,7 @@ pinned: false
 
 Ce moteur de classification de produits exploite le Deep Learning Multimodal (Texte + Image) pour résoudre le challenge **<a href="https://challengedata.ens.fr/challenges/35">Rakuten / Challenge Data ENS</a>**. 
 
-> This challenge focuses on the topic of large-scale product type code multimodal (text and image) classification where the goal is to predict each product's type code as defined by the French e-commerce platform Rakuten.
+> Ce challenge porte sur la classification multimodale à grande échelle des product-type-code, le but étant de prédire la classe de chaque produit telle que défini Rakuten.
 
 **Objectif** : Prédire le type de produit à grande échelle en fusionnant les signaux textuels (désignations, descriptions) et visuels (images).
 
@@ -39,14 +39,22 @@ python -m spacy download fr_core_news_md
 git lfs pull
 ```
 
-### 2. Backend (FastAPI)
+### 2. Lancement Local
+
+Ouvrez deux terminaux séparés :
+
+#### Terminal 1 : Backend (API)
 ```bash
+# Installation des dépendances API (si nécessaire)
+pip install -r requirements_hf.txt
+
+# Lancement du serveur
 TOKENIZERS_PARALLELISM=false uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 3. Frontend (React)
+#### Terminal 2 : Frontend (React)
 ```bash
-cd frontend && npm install && npm run dev
+cd frontend && npm run dev
 ```
 
 ### 4. Workflow Git LFS (Modèles Volumineux)

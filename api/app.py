@@ -34,19 +34,39 @@ app = FastAPI(
 
 logger = logging.getLogger("uvicorn")
 
+# ══════════════════════════════════════════
+# PERSONNALISATION LOGS : VERT PÉTARD 🚀
+# ══════════════════════════════════════════
+class HighVisibilityFilter(logging.Filter):
+    def filter(self, record):
+        msg = record.getMessage()
+        if "Application startup complete" in msg:
+            # Vert "pétard" : Bold + Bright Green + 3 checkmarks pour le signal de départ
+            record.msg = f"\033[92;1m{msg} ✅✅✅\033[0m"
+        return True
+
+# On applique le filtre sur uvicorn.error (source du message de startup)
+logging.getLogger("uvicorn.error").addFilter(HighVisibilityFilter())
+
 @app.on_event("startup")
 def startup_event():
     url_base = get_frontend_url()
-    logger.info("------------------------------------------------")
-    logger.info("   RAKUTEN PROJECT - RACCOURCIS LOCAUX")
-    logger.info(f"   Homepage      : {url_base}/")
-    logger.info(f"   Multimodal    : {url_base}/demo/multimodal")
-    logger.info(f"   Swagger Docs  : http://localhost:8000/docs")
-    logger.info("------------------------------------------------")
-    logger.info("   LIENS DE PRODUCTION")
-    logger.info("   Vercel        : https://jun-25-cds-rakuten.vercel.app/")
-    logger.info("   HF Spaces     : https://huggingface.co/spaces/nolll77/rakuten-multimodal-api")
-    logger.info("------------------------------------------------")
+    # Couleurs pour le banner
+    CYAN = "\033[96m"
+    YELLOW = "\033[93m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    logger.info(f"{CYAN}{BOLD}------------------------------------------------{RESET}")
+    logger.info(f"{CYAN}{BOLD}   🚀 RAKUTEN PROJECT - RACCOURCIS LOCAUX{RESET}")
+    logger.info(f"   Homepage      : {YELLOW}{url_base}/{RESET}")
+    logger.info(f"   Multimodal    : {YELLOW}{url_base}/demo/multimodal{RESET}")
+    logger.info(f"   Swagger Docs  : {YELLOW}http://localhost:8000/docs{RESET}")
+    logger.info(f"{CYAN}{BOLD}------------------------------------------------{RESET}")
+    logger.info(f"{CYAN}{BOLD}   🌐 LIENS DE PRODUCTION{RESET}")
+    logger.info(f"   Vercel        : {YELLOW}https://jun-25-cds-rakuten.vercel.app/{RESET}")
+    logger.info(f"   HF Spaces     : {YELLOW}https://huggingface.co/spaces/nolll77/rakuten-multimodal-api{RESET}")
+    logger.info(f"{CYAN}{BOLD}------------------------------------------------{RESET}")
 
 app.add_middleware(
     CORSMiddleware,
