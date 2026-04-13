@@ -65,7 +65,7 @@ def startup_event():
     logger.info(f"{CYAN}{BOLD}------------------------------------------------{RESET}")
     logger.info(f"{CYAN}{BOLD}   🌐 LIENS DE PRODUCTION{RESET}")
     logger.info(f"   Vercel        : {YELLOW}https://jun-25-cds-rakuten.vercel.app/{RESET}")
-    logger.info(f"   HF Spaces     : {YELLOW}https://huggingface.co/spaces/nolll77/rakuten-multimodal-api{RESET}")
+    logger.info(f"   HF Logs       : {YELLOW}https://huggingface.co/spaces/nolll77/rakuten-multimodal-api?logs=container{RESET}")
     logger.info(f"{CYAN}{BOLD}------------------------------------------------{RESET}")
 
 app.add_middleware(
@@ -145,6 +145,6 @@ def model_status():
         "available_modes": ["stacking", "mlp"],
         "description": {
             "stacking": "Ensemble complet (LightGBM + CatBoost + LR + MLP → Meta Learner)",
-            "mlp": "Deep Learning MLP seul (roue de secours, plus rapide)"
+            "mlp": "Deep Learning MLP seul (Inférence rapide, plus rapide)"
         }
     }

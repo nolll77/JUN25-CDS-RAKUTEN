@@ -135,7 +135,7 @@ export default function DemoImage() {
           <div>
             <span className="font-mono text-xs text-muted-foreground uppercase tracking-wider">Modèle actif</span>
             <p className="text-sm font-semibold mt-1">
-              {modelMode === "stacking" ? "Stacking Complet" : "MLP (roue de secours)"}
+              {modelMode === "stacking" ? "Stacking Complet" : "MLP (Mode Rapide)"}
             </p>
             <p className="text-xs text-muted-foreground">
               {modelMode === "stacking"
