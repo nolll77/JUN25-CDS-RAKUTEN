@@ -1,6 +1,6 @@
 ---
 title: Rakuten Multimodal API
-emoji: none
+emoji: 🚀
 colorFrom: red
 colorTo: gray
 sdk: docker
