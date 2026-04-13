@@ -8,6 +8,10 @@ COPY requirements_hf.txt .
 RUN pip install --no-cache-dir -r requirements_hf.txt
 RUN python -m spacy download fr_core_news_md
 
+# Prétéléchargement des modèles Hugging Face et Timm pour éviter les erreurs de connexion au runtime
+RUN python -c "from transformers import AutoTokenizer, AutoModel; AutoTokenizer.from_pretrained('camembert-base'); AutoModel.from_pretrained('camembert-base')"
+RUN python -c "import timm; timm.create_model('efficientnet_b3', pretrained=True, num_classes=0)"
+
 # Copier le code (API, dossiers src et modèles)
 COPY ./api /app/api
 COPY ./src /app/src
