@@ -67,12 +67,12 @@ Le projet utilise **Git LFS** pour gérer les fichiers modèles (.joblib, .cbm, 
 
 ## Ressources et Déploiement
 
-### 📊 Travaux de Recherche (Notebooks)
+### Travaux de Recherche (Notebooks Python)
 Les étapes détaillées du preprocessing (nb2) et de la modélisation (nb3), incluant la génération des 57 artefacts du projet, sont disponibles sur Kaggle :
 - [**Rakuten Preprocessing & Modeling (Full Workflow)**](https://www.kaggle.com/code/nolll77/rakuten-preprocessing-and-modeling-57-artifacts/notebook?scriptVersionId=310474347)
 
-### 🚀 Stack Technologique en Production
-Le projet est déployé et disponible 24h/24 et 7j/7 via l'infrastructure suivante :
+### Stack Technologique en Production
+Le projet est déployé et disponible 24/7 via l'infrastructure suivante :
 - **Backend API (Hugging Face)** : [Hébergement du modèle et de la logique d'inférence](https://huggingface.co/spaces/nolll77/rakuten-multimodal-api/tree/main).
 - **Interface Démo (Vercel)** : [Application React interactive pour tests en temps réel](https://jun-25-cds-rakuten-git-main-nolll77s-projects.vercel.app/demo/multimodal).
 
